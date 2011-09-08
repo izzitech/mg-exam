@@ -1,28 +1,37 @@
-
-#include <intrins.h>
-#include <reg931.h>
+#include "LPC122x.h"
+#include "gpio.h" 
+#include "ssp.h"
 #include "mfrc531.h"
-#include "main.h"
 
+extern void int_disable(void);
+extern void int_enable(void) ;
+extern void init_mfrc500(void);
+extern void reset_mfrc500(void);
+extern void unreset_mfrc500(void);
 
 #define GetRegPage(addr)        (0x80 | (addr>>3)) 
+
+#define READER_RESET			reset_mfrc500()
+#define READER_CLEAR_RESET		unreset_mfrc500()
+#define SSP_CS_LOW				GPIOSetValue( PORT2, 0, 0 )
+#define SSP_CS_HIGH				GPIOSetValue( PORT2, 0, 1 )
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
 //          				 Time Delay
 ///////////////////////////////////////////////////////////////////////////////
 
-void DelayMs(unsigned char dat)
+extern volatile unsigned long	ticks;
+
+void DelayMs(unsigned int ms)
 {
-	unsigned char i,k;
-	unsigned int j;
-	
-	k = dat;
-	for (i = 0; i < k; i ++)
-	{
-		for (j = 0; j < 675; j ++)
-			{;}
-	}
+	SysTick->LOAD  = (SystemCoreClock/1000 & SysTick_LOAD_RELOAD_Msk)*ms - 1;  //往重载计数器里写值        
+	SysTick->VAL   = 0;                //计数器清零        
+	SysTick->CTRL |= ((1<<1)|(1<<0));     	   //开启计数器,开启计数器中断
+	while(!ticks);
+	ticks = 0;
+	SysTick->CTRL =0; 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -30,21 +39,17 @@ void DelayMs(unsigned char dat)
 ///////////////////////////////////////////////////////////////////////////////
 void RC531Init(void)
 {	
-
-   SleepMs(500);        // wait after POR    
-   READER_RESET;        // reset reader IC
-   SleepMs(1500);        // wait
-   READER_CLEAR_RESET; // clear reset pin
-   SleepUs(1000);
-
-	RC531_RST = 0;	
- 	DelayMs(20);
- 
-	RC531_RST = 1;
-	DelayMs(20);
-
-	RC531_RST = 0;
-	DelayMs(20);
+//	RC531_RST = 0;	
+	READER_CLEAR_RESET;
+	DelayMs(500);
+	
+//	RC531_RST = 1;
+	READER_RESET;
+	DelayMs(1500);
+	
+//	RC531_RST = 0;
+	READER_CLEAR_RESET;
+	DelayMs(1000);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -52,19 +57,13 @@ void RC531Init(void)
 /////////////////////////////////////////////////////////////////////////////
 void WriteRawIO(unsigned char addr, unsigned char dat)
 {  	
-	P0 = addr;
-	_nop_();
-	RC531_ALE = 1;
-	_nop_();
-	RC531_ALE = 0;
-	_nop_();	
+    unsigned char temp; 
+    temp = (unsigned char)((addr << 1) & 0x7e); 
 
-	RC531_CS = 0;
-	P0 = dat;
-	RC531_WR = 0;
-	_nop_();     
-	RC531_WR = 1;
-	RC531_CS = 1;
+	SSP_CS_LOW;		// CS Low Seleted
+	SSP_Snd_OneByte(temp);
+	SSP_Snd_OneByte(dat);
+	SSP_CS_HIGH;	// CS Low UnSeleted
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -73,21 +72,15 @@ void WriteRawIO(unsigned char addr, unsigned char dat)
 unsigned char ReadRawIO(unsigned char addr)
 {
 	unsigned char dat;
-	
-	P0 = addr;
-	_nop_();
-	RC531_ALE = 1;
-	_nop_();
-	RC531_ALE = 0;
-	_nop_();	
-	
-	P0 = 0xff;
-	RC531_CS = 0;
-	RC531_RD = 0;
-	dat = P0;
-	_nop_();
-	RC531_RD = 1;
-	RC531_CS = 1;
+	unsigned char temp;
+
+	temp = (unsigned char)(((addr << 1) | 0x80) & 0xfe); 
+
+	SSP_CS_LOW;						// CS Low Seleted
+	SSP_Snd_OneByte(temp);			// Send address info
+	dat = SSP_Rcv_OneByte();	// Rcv data
+	SSP_CS_HIGH;
+
 	return dat;
 }
 
@@ -178,7 +171,6 @@ void PcdConfigISOType(void)
        PcdSetTmo(106);
        DelayMs(1);
        PcdAntennaOn();
-
 }
 
 
