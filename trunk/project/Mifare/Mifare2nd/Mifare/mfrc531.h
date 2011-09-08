@@ -11,7 +11,7 @@ struct TranSciveBuffer{unsigned char MfCommand;
                              };
 
 //—” ±≥Ã–Ú
-extern void DelayMs(unsigned char dat);  
+extern void DelayMs(unsigned int ms);
 
 //∏¥ŒªRC632
 extern char PcdReset(void);      
