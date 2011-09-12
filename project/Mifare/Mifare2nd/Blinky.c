@@ -166,8 +166,8 @@ void init_mfrc500(void)
 #ifdef DEBUG_UART
 		printf("mfrc500 init ok\r\n");
 #endif
-		DelayMs(250);
-		DelayMs(80);
+		DelayMs(5500);
+	//	DelayMs(80);
 	}  
 }
 
@@ -195,10 +195,12 @@ void compcd_antenna(void)
 
 	if (!PcdAntena)
 	{
+		printf("Antenna Off\r\n");
 		status = PcdAntennaOff();
 	}
 	else
 	{  
+		printf("Antenna On\r\n");
 		DelayMs(10); 
 		status = PcdAntennaOn();
 		DelayMs(10);
@@ -237,7 +239,7 @@ char CheckSum(const void *pData, unsigned char nDataLen)
 void COM_Send(unsigned char *pInfo, unsigned char nInfoLen, unsigned char status)
 {
 	unsigned char senddat[40];
-
+	memset(senddat, 0x00, 40);
 	if ((PROTOCOL_LEN + nInfoLen) > sizeof(senddat))
 	{
 		return;
@@ -301,14 +303,24 @@ void M1Identify(void)
 	if (status != MI_OK )
 	{
 		PcdRequest(PICC_REQIDL, c_CardType);
+#ifdef DEBUG_UART
+		printf("PcdRequest fail 0x%x, CardType 0x%x%x\r\n", status, c_CardType[1], c_CardType[0]);
+#endif
 	}
+
 	PcdAnticoll(c_CardSrlNum);
 	if (MI_OK == PcdSelect(c_CardSrlNum, sak1))
 	{
+#ifdef DEBUG_UART
+		printf("PcdSelect success\r\n");
+#endif
 		status = 0;
 	}
 	else
 	{
+#ifdef DEBUG_UART
+		printf("PcdSelect fail\r\n");
+#endif
 		status = 0x01;										//Ñ¡¿¨Ê§°Ü
 	}
 
@@ -655,7 +667,7 @@ void PcdIdentify(void)
 //  GPIOIntEnable( PORT0, 7 );
 //}
 
-unsigned char disptemp[16];
+volatile unsigned char disptemp[16];
 
 /*----------------------------------------------------------------------------
   MAIN function
@@ -681,13 +693,26 @@ int main (void)
 #endif
 
 	init_mfrc500();
+//while(1)
+//{
+//	for(i=0; i<5; i++)
+//	data[i] = ReadE2RC(0x00+i);
+//	printf("Addr 0x00 content 0x%x, ", data[0]);
+//#ifdef DEBUG_UART
+//	for(i=1; i<4; i++)
+//	printf("0x%x, ", data[i]);
+//#endif
+//	printf("0x%x\r\n", data[4]);
+//	DelayMs(2000);
+//}
 	compcd_antenna();
+
 	PcdConfigISOType();
 
 	while(1)
 	{
 		COM_Recv();		
-
+		//M1Identify();
 		if (cRecvOk == 1)
 		{			
 			cRecvOk = 0;
@@ -726,5 +751,6 @@ int main (void)
 			}
 		}
 		PcdIdentify();
+		printf("-------------------------^.^-------------------------------------\r\n");
 	}
 }

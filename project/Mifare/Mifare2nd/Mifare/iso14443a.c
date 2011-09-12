@@ -36,6 +36,9 @@ char PcdRequest(unsigned char req_code,unsigned char *pTagType)
    MfComData.MfData[0] = req_code;
 
    status = PcdComTransceive(pi);
+//#ifdef DEBUG_UART
+	printf("PcdComTransceive 0x%x\r\n", status);
+//#endif	
    
    if (!status)
    {    

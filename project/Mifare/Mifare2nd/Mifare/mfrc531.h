@@ -41,6 +41,8 @@ extern void WriteRawRC(unsigned char Address,unsigned char value);
 //¶ÁRC632¼Ä´æÆ÷                     
 extern unsigned char ReadRawRC(unsigned char Address); 
 
+extern unsigned char ReadE2RC(unsigned char addr);
+
 //ÖÃRC632¼Ä´æÆ÷Î»                                
 extern void SetBitMask(unsigned char reg,unsigned char mask); 
 
@@ -52,7 +54,6 @@ extern void PcdSetTmo(unsigned char tmoLength);
 
 //ISO14443Í¨Ñ¶º¯Êı
 extern char PcdComTransceive(struct TranSciveBuffer *pi);
-
 
 /////////////////////////////////////////////////////////////////////
 //RC632ÃüÁî×Ö
