@@ -134,14 +134,14 @@ void SSP_Init( void )
   }
 
   /* Enable the SSP Interrupt */
-  NVIC_EnableIRQ(SSP_IRQn);
+//  NVIC_EnableIRQ(SSP_IRQn);
 	
   /* Master mode */
   LPC_SSP->CR1 = SSPCR1_SSE;
 
   /* Set SSPINMS registers to enable interrupts */
   /* enable all error related interrupts */
-  LPC_SSP->IMSC = SSPIMSC_RORIM | SSPIMSC_RTIM;
+//  LPC_SSP->IMSC = SSPIMSC_RORIM | SSPIMSC_RTIM;
   return;
 }
 

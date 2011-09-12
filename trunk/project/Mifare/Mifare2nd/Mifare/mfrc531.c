@@ -16,6 +16,33 @@ extern void unreset_mfrc500(void);
 #define SSP_CS_LOW				GPIOSetValue( PORT2, 0, 0 )
 #define SSP_CS_HIGH				GPIOSetValue( PORT2, 0, 1 )
 
+typedef struct 
+         {
+            unsigned char  cmd;           //!< command code 
+            char           status;        //!< communication status
+            unsigned short nBytesSent;    //!< how many bytes already sent
+            unsigned short nBytesToSend;  //!< how many bytes to send
+            unsigned short nBytesReceived;//!< how many bytes received
+            unsigned long  nBitsReceived; //!< how many bits received
+            unsigned char  irqSource;     //!< which interrupts have occured
+            unsigned char  collPos;       /*!< at which position occured a
+                                          collision*/
+            unsigned char  errFlags;      //!< error flags
+            unsigned char  saveErrorState;//!< accumulated error flags for
+                                          //!< multiple responses
+            unsigned char  RxAlignWA;     //!< workaround for RxAlign = 7
+            unsigned char  DisableDF;     //!< disable disturbance filter
+         } MfCmdInfo;
+
+// In order to exchange some values between the ISR and the calling function,
+// a struct is provided. 
+volatile MfCmdInfo     MInfo;  
+
+#define MEMORY_BUFFER_SIZE    300
+unsigned char MemPool[MEMORY_BUFFER_SIZE];
+
+unsigned char *MSndBuffer = MemPool; // pointer to the transmit buffer
+unsigned char *MRcvBuffer = MemPool; // pointer to the receive buffer                
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,6 +89,8 @@ void WriteRawIO(unsigned char addr, unsigned char dat)
 
 	SSP_CS_LOW;		// CS Low Seleted
 	SSP_Snd_OneByte(temp);
+//	SSP_CS_HIGH;
+//	SSP_CS_LOW;
 	SSP_Snd_OneByte(dat);
 	SSP_CS_HIGH;	// CS Low UnSeleted
 }
@@ -78,7 +107,10 @@ unsigned char ReadRawIO(unsigned char addr)
 
 	SSP_CS_LOW;						// CS Low Seleted
 	SSP_Snd_OneByte(temp);			// Send address info
+//	SSP_CS_HIGH;
+//	SSP_CS_LOW;
 	dat = SSP_Rcv_OneByte();	// Rcv data
+	SSP_Snd_OneByte(0x00);
 	SSP_CS_HIGH;
 
 	return dat;
@@ -100,7 +132,7 @@ unsigned char ReadRawRC(unsigned char addr)//ok
 {   
     WriteRawIO(0x00,GetRegPage(addr));   // select appropriate page    
     return ReadRawIO(addr);              // read value at the specified    
-}  
+}
 
 /////////////////////////////////////////////////////////////////////
 //复位并初始化RC531
@@ -129,7 +161,6 @@ char PcdReset(void)
 //////////////////////////////////////////////////////////////////////
 void PcdConfigISOType(void)
 {
-
        ClearBitMask(RegControl,0x08);
 
        WriteRawRC(RegClockQControl,0x0);
@@ -447,11 +478,24 @@ char PcdComTransceive(struct TranSciveBuffer *pi)
 char PcdAntennaOn(void)
 {
     unsigned char i;
+	while(1)
+	{
     i = ReadRawRC(RegTxControl);
-    if (i & 0x03)
-    {   return MI_OK;	}
+	printf("RegTxControl 0x%x\r\n", i);
+	if(i == 0x3B)
+	{
+		ClearBitMask(RegTxControl, 0x03);
+	}
+    DelayMs(1000);
+	}
+	if (i & 0x03)
+    {   
+		printf("i==0x03\r\n");
+		return MI_OK;	
+	}
     else
     {
+		printf("Set mask 0x03\r\n");
         SetBitMask(RegTxControl, 0x03);
         return MI_OK;
     }
